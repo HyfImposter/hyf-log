@@ -1,9 +1,9 @@
 ---
 title: Helsinki大学java快速入门
 date: 2026-06-02
-category: 文章
+category: 课程笔记
 tags: [Java, 课程]
-excerpt: 
+excerpt: Helsinki 大学 Java MOOC 的快速入门记录，适合用大量基础练习巩固语法和 coding 手感。
 ---
 
 # Helsinki大学java快速入门
