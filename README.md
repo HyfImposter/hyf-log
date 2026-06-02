@@ -49,9 +49,16 @@ excerpt: 梳理缓存失效、双写一致性和常见工程取舍。
 
 - `title`：文章标题
 - `date`：日期，格式 `YYYY-MM-DD`
-- `category`：分类，例如 `课程笔记`、`项目复盘`、`文章`
+- `category`：分类，例如 `post`、`note`、`project`、`课程笔记`、`项目复盘`
 - `tags`：标签数组
 - `excerpt`：文章摘要，会显示在列表页
+
+分类显示逻辑：
+
+- `Posts` 永远显示全部文章。
+- `Notes` 只是一种过滤入口，会显示 `category` 包含 `note`、`笔记` 或 `课程` 的文章。
+- `Projects` 只是一种过滤入口，会显示 `category` 包含 `project` 或 `项目` 的文章。
+- 普通博客文章默认用 `category: post`，直接 push 后一定会出现在 `Posts`。
 
 ## 发布流程
 

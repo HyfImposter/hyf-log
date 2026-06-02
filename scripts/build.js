@@ -214,7 +214,7 @@ function readPosts() {
         slug,
         title,
         date,
-        category: meta.category || "文章",
+        category: meta.category || "post",
         tags: Array.isArray(meta.tags) ? meta.tags : [],
         excerpt: meta.excerpt || stripMarkdown(body).slice(0, 110),
         body,
@@ -249,12 +249,28 @@ function uniqueCategories(posts) {
   return [...new Set(posts.map((post) => post.category))];
 }
 
+function postTypeForCategory(category) {
+  const categoryKey = category.toLowerCase();
+  if (categoryKey.includes("project") || category.includes("项目")) return "project";
+  if (categoryKey.includes("note") || category.includes("课程") || category.includes("笔记")) return "note";
+  return "post";
+}
+
+function categoryLabel(category) {
+  const labels = {
+    post: "Post",
+    note: "Note",
+    project: "Project",
+  };
+  return labels[category.toLowerCase()] || category;
+}
+
 function pageShell({ title, description, body, current = "page" }) {
   const rootPrefix = current === "post" ? "../../" : "";
   const homeHref = `${rootPrefix}index.html`;
   const articlesHref = `${rootPrefix}posts.html`;
-  const notesHref = `${rootPrefix}posts.html?category=${encodeURIComponent("课程笔记")}`;
-  const projectsHref = `${rootPrefix}posts.html?category=${encodeURIComponent("项目复盘")}`;
+  const notesHref = `${rootPrefix}posts.html?type=note`;
+  const projectsHref = `${rootPrefix}posts.html?type=project`;
   const aboutHref = current === "post" ? "../../about.html" : "about.html";
   return `<!doctype html>
 <html lang="zh-CN">
@@ -289,9 +305,10 @@ function pageShell({ title, description, body, current = "page" }) {
 
 function renderPostCard(post) {
   const searchText = [post.title, post.excerpt, post.category, ...post.tags].join(" ");
-  return `<article class="post-card" data-title="${escapeHtml(post.title)}" data-category="${escapeHtml(post.category)}" data-date="${escapeHtml(post.date)}" data-minutes="${post.minutes}" data-search="${escapeHtml(searchText)}">
+  const postType = postTypeForCategory(post.category);
+  return `<article class="post-card" data-title="${escapeHtml(post.title)}" data-category="${escapeHtml(post.category)}" data-type="${postType}" data-date="${escapeHtml(post.date)}" data-minutes="${post.minutes}" data-search="${escapeHtml(searchText)}">
   <div class="post-meta">
-    <span>${escapeHtml(post.category)}</span>
+    <span>${escapeHtml(categoryLabel(post.category))}</span>
     <span>${formatDate(post.date)}</span>
     <span>${post.minutes} 分钟读完</span>
   </div>
@@ -349,10 +366,15 @@ Built ${posts.length} posts into ./dist</code></pre>
 }
 
 function renderPostsPage(posts) {
-  const categories = uniqueCategories(posts);
+  const categories = uniqueCategories(posts).filter((category) => {
+    const normalized = category.toLowerCase();
+    return normalized !== "post" && postTypeForCategory(category) === "post";
+  });
   const filters = [
-    `<button type="button" class="filter-button active" data-filter="all">All</button>`,
-    ...categories.map((category) => `<button type="button" class="filter-button" data-filter="${escapeHtml(category)}">${escapeHtml(category)}</button>`),
+    `<button type="button" class="filter-button active" data-kind="all" data-filter="all">All</button>`,
+    `<button type="button" class="filter-button" data-kind="type" data-filter="note">Notes</button>`,
+    `<button type="button" class="filter-button" data-kind="type" data-filter="project">Projects</button>`,
+    ...categories.map((category) => `<button type="button" class="filter-button" data-kind="category" data-filter="${escapeHtml(category)}">${escapeHtml(category)}</button>`),
   ].join("");
 
   const body = `<main class="archive-shell">
@@ -399,22 +421,26 @@ function renderPostsPage(posts) {
     const count = document.querySelector("#post-count");
     const empty = document.querySelector("#empty-state");
     const params = new URLSearchParams(window.location.search);
-    let category = params.get("category") || "all";
+    let filterKind = params.get("type") ? "type" : params.get("category") ? "category" : "all";
+    let filterValue = params.get("type") || params.get("category") || "all";
 
-    if (!buttons.some((button) => button.dataset.filter === category)) {
-      category = "all";
+    if (!buttons.some((button) => button.dataset.kind === filterKind && button.dataset.filter === filterValue)) {
+      filterKind = "all";
+      filterValue = "all";
     }
 
     function setActiveButton() {
       buttons.forEach((button) => {
-        button.classList.toggle("active", button.dataset.filter === category);
+        button.classList.toggle("active", button.dataset.kind === filterKind && button.dataset.filter === filterValue);
       });
     }
 
     function updateUrl() {
       const next = new URL(window.location.href);
-      if (category === "all") next.searchParams.delete("category");
-      else next.searchParams.set("category", category);
+      next.searchParams.delete("category");
+      next.searchParams.delete("type");
+      if (filterKind === "type") next.searchParams.set("type", filterValue);
+      if (filterKind === "category") next.searchParams.set("category", filterValue);
       window.history.replaceState({}, "", next);
     }
 
@@ -429,9 +455,12 @@ function renderPostsPage(posts) {
 
       let visibleCount = 0;
       sorted.forEach((card) => {
-        const matchCategory = category === "all" || card.dataset.category === category;
+        const matchFilter =
+          filterKind === "all" ||
+          (filterKind === "type" && card.dataset.type === filterValue) ||
+          (filterKind === "category" && card.dataset.category === filterValue);
         const matchQuery = !query || card.dataset.search.toLowerCase().includes(query);
-        const visible = matchCategory && matchQuery;
+        const visible = matchFilter && matchQuery;
         card.hidden = !visible;
         if (visible) visibleCount += 1;
         list.appendChild(card);
@@ -445,7 +474,8 @@ function renderPostsPage(posts) {
 
     buttons.forEach((button) => {
       button.addEventListener("click", () => {
-        category = button.dataset.filter;
+        filterKind = button.dataset.kind;
+        filterValue = button.dataset.filter;
         applyFilters();
       });
     });

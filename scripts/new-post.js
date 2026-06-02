@@ -40,7 +40,7 @@ if (fs.existsSync(filePath)) {
 const content = `---
 title: ${title}
 date: ${today()}
-category: 文章
+category: post
 tags: []
 excerpt: 
 ---
